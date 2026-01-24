@@ -16,6 +16,9 @@ class ReportGenerator:
         # Read the generated HTML content
         with open(temp_file, "r", encoding="utf-8") as f:
             html_content = f.read()
+
+        report_title = os.path.basename(filename)
+        html_content = html_content.replace("<title>temp_plot.html</title>", f"<title>{report_title}</title>")
         
         # Clean up the Stats 
         metrics = stats[stats.apply(lambda x: not isinstance(x, (pd.DataFrame, pd.Series, list)))]
