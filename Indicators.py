@@ -27,3 +27,23 @@ def bollinger_bands(series, period=20, std_dev=2):
     lower = middle - (std * std_dev)
     
     return upper, middle, lower
+
+def macd(series, fast=12, slow=26, signal=9):
+    """
+    Computes MACD (Moving Average Convergence Divergence).
+    Returns: (MACD_Line, Signal_Line, Histogram)
+    """
+    # 1. Calculate Fast and Slow EMAs
+    ema_fast = series.ewm(span=fast, adjust=False).mean()
+    ema_slow = series.ewm(span=slow, adjust=False).mean()
+
+    # 2. Calculate MACD Line
+    macd_line = ema_fast - ema_slow
+
+    # 3. Calculate Signal Line
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+
+    # 4. Calculate Histogram (Optional, but useful for visuals)
+    histogram = macd_line - signal_line
+
+    return macd_line, signal_line, histogram
