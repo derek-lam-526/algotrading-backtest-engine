@@ -19,7 +19,9 @@ class DataManager:
         Backup: CSV.
         Logic: Reads Parquet to check dates, but writes to BOTH when updating.
         """
-        tf_tag = "1Min" if timeframe == TimeFrame.Minute else "1Day"
+        print(f"DEBUG: DataManager received timeframe: {timeframe} (Value: {timeframe.value})")
+        
+        tf_tag = timeframe.value
         
         # Define BOTH paths
         parquet_path = os.path.join(DATA_DIR, f"{symbol}_{tf_tag}.parquet")
@@ -100,7 +102,7 @@ class DataManager:
                 df['timestamp'] = df['timestamp'].dt.tz_convert('America/New_York')
                 df = df.set_index('timestamp')
                 
-                if timeframe == TimeFrame.Minute:
+                if "Min" in timeframe.value or "Hour" in timeframe.value:
                     df = df.between_time('09:30', '16:00')
                 
                 return df[['Open', 'High', 'Low', 'Close', 'Volume']]

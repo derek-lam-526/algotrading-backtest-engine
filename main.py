@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from alpaca.data.timeframe import TimeFrame
+from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 from backtesting import Backtest
 
 import config
@@ -15,11 +15,12 @@ if __name__ == "__main__":
     
     # Configure backtest
     SYMBOL = "MU"
-    START = datetime(2023, 1, 1)
+    START = datetime(2025, 1, 1)
     END = datetime(2025, 1, 23)
-    STRATEGY_CLASS = SmaCross  
-    TF = TimeFrame.Day #TimeFrame.Minute
-    
+    STRATEGY_CLASS = MeanReversion  
+    TF = TimeFrame(15, TimeFrameUnit.Minute) # Minute, Hour, Day, Week, Month
+
+    # Get Data
     df = dm.get_data(SYMBOL, START, END, timeframe=TF)
     
     if not os.path.exists(config.RESULTS_DIR):
@@ -39,7 +40,7 @@ if __name__ == "__main__":
         return_pct = round(stats['Return [%]'], 2)
         
         # Construct Final Name
-        filename = f"{SYMBOL}_{strat_name}_{date_str}_Ret{return_pct}.html"
+        filename = f"{SYMBOL}_{strat_name}_{date_str}_{TF.value}_Ret{return_pct}.html"
         
         full_path = os.path.join(config.RESULTS_DIR, filename)
         
