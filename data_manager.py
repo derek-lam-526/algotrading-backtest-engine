@@ -28,7 +28,7 @@ class DataManager:
         req_start = self.ny_tz.localize(start_date)
         req_end = self.ny_tz.localize(end_date)
         
-        # 1. IF NO PARQUET EXISTS: Download everything & Save Both
+        # IF NO PARQUET EXISTS: Download everything & Save Both
         if not os.path.exists(parquet_path):
             print(f"No local data for {symbol}. Downloading full history...")
             df = self._fetch_from_alpaca(symbol, req_start, req_end, timeframe)
@@ -36,7 +36,7 @@ class DataManager:
                 self._save_to_disk(df, parquet_path, csv_path) # <--- Helper function
             return df
 
-        # 2. IF PARQUET EXISTS: Load it and check gaps
+        # IF PARQUET EXISTS: Load it and check gaps
         print(f"Found local {tf_tag} data for {symbol}. Checking for gaps...")
         df = pd.read_parquet(parquet_path)
         
@@ -61,7 +61,7 @@ class DataManager:
                 df = pd.concat([df, append_df])
                 is_updated = True
         
-        # 3. SAVE BOTH IF CHANGED
+        # SAVE BOTH IF CHANGED
         if is_updated:
             print(f"   Saving merged data ({len(df)} rows) to Parquet and CSV...")
             # Sort and Drop Duplicates
@@ -82,13 +82,10 @@ class DataManager:
 
     def _save_to_disk(self, df, parquet_path, csv_path):
         """Helper to ensure we always save both at the same time"""
-        # 1. Save Primary (Fast)
         df.to_parquet(parquet_path)
-        # 2. Save Backup (Readable)
         df.to_csv(csv_path)
 
     def _fetch_from_alpaca(self, symbol, start, end, timeframe):
-        # (This function remains exactly the same as before)
         req = StockBarsRequest(
             symbol_or_symbols=[symbol],
             timeframe=timeframe,

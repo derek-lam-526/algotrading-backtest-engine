@@ -5,7 +5,6 @@ from backtesting.lib import crossover
 from Indicators import rsi, bollinger_bands
 from backtesting.test import SMA
 
-# --- STRATEGY CLASSES ---
 class SmaCross(Strategy):
     """
     Simple Moving Average (SMA) Crossover Strategy.
@@ -49,7 +48,7 @@ class MeanReversion(Strategy):
        - Price reverts back to the Middle Bollinger Band (SMA).
        - OR RSI becomes Overbought (e.g. 70).
     """
-    # Parameters we can optimize later
+
     rsi_period = 14
     bb_period = 20
     bb_std = 2.0
@@ -57,8 +56,7 @@ class MeanReversion(Strategy):
     overbought = 65
     
     def init(self):
-        # 1. Compute RSI
-        # self.I wraps the function so it appears on the chart
+        # RSI Indicator
         self.rsi = self.I(
             rsi, 
             pd.Series(self.data.Close), 
@@ -67,9 +65,7 @@ class MeanReversion(Strategy):
             name = f"RSI({self.rsi_period})"
         )
 
-        # 2. Compute Bollinger Bands
-        # Since our function returns 3 arrays, we unpack them
-        # 1. UPPER BAND
+        # BOLL Indicator
         self.upper = self.I(
             lambda: bollinger_bands(pd.Series(self.data.Close), self.bb_period, self.bb_std)[0],
             overlay=True,
@@ -77,7 +73,6 @@ class MeanReversion(Strategy):
             color="purple"
         )
 
-        # 2. MIDDLE BAND
         self.middle = self.I(
             lambda: bollinger_bands(pd.Series(self.data.Close), self.bb_period, self.bb_std)[1],
             overlay=True,
@@ -85,7 +80,6 @@ class MeanReversion(Strategy):
             color="pink"
         )
 
-        # 3. LOWER BAND
         self.lower = self.I(
             lambda: bollinger_bands(pd.Series(self.data.Close), self.bb_period, self.bb_std)[2],
             overlay=True,
@@ -96,21 +90,13 @@ class MeanReversion(Strategy):
     def next(self):
         price = self.data.Close[-1]
         
-        # ENTRY LOGIC:
-        # If we are NOT in a position...
         if not self.position:
-            # AND Price is below Lower Band (Cheap)
             if price < self.lower[-1]:
-                # AND RSI is Oversold (Exhausted)
                 if self.rsi[-1] < self.oversold:
                     self.buy()
         
-        # EXIT LOGIC:
-        # If we ARE in a position...
         else:
-            # If RSI gets too hot (Overbought)
             if self.rsi[-1] > self.overbought:
                 self.position.close()
-            # OR price reverts back to the mean (Middle Band)
             elif price > self.middle[-1]:
                 self.position.close()

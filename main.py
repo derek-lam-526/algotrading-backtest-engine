@@ -17,7 +17,7 @@ if __name__ == "__main__":
     SYMBOL = "MU"
     START = datetime(2023, 1, 1)
     END = datetime(2025, 1, 23)
-    STRATEGY_CLASS = MeanReversion  
+    STRATEGY_CLASS = SmaCross  
     TF = TimeFrame.Day #TimeFrame.Minute
     
     df = dm.get_data(SYMBOL, START, END, timeframe=TF)
