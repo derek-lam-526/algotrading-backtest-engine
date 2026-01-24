@@ -3,7 +3,27 @@ import pandas as pd
 
 class ReportGenerator:
     @staticmethod
-    def save_report(backtest_instance, stats, filename):
+    def save_report(backtest_instance, stats, filename, strategy_class=None):
+        # ... (Keep steps 1, 2, 3 the same as you have now) ...
+
+        # --- INSERT NEW LOGIC HERE (After step 3) ---
+        # 3b. Extract Strategy Info
+        desc = "No description."
+        params_html = "<p>No parameters.</p>"
+        
+        if strategy_class:
+            # Get Description
+            if strategy_class.__doc__:
+                desc = strategy_class.__doc__.strip().replace("\n", "<br>")
+            
+            # Get Parameters (int/float/str variables only)
+            params = {k: v for k, v in strategy_class.__dict__.items() 
+                    if not k.startswith('_') and isinstance(v, (int, float, str))}
+            
+            if params:
+                # Convert dict to simple HTML table rows
+                rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in params.items()])
+                params_html = f"<table class='metrics-table'>{rows}</table>"
         """
         Generates a split-screen HTML report:
         Left: Interactive Chart
@@ -29,74 +49,76 @@ class ReportGenerator:
         # Convert to HTML Table
         table_html = metrics_df.to_html(index=False, classes="metrics-table", border=0)
 
-        # 4. Define Custom CSS for the Split Layout
+        # 4. Define CSS Grid Layout
         custom_css = """
         <style>
-            /* Force Body to be a Flex Container */
+            /* GRID SETUP */
             body { 
-                display: flex !important; 
-                flex-direction: row !important; 
+                display: grid !important; 
+                grid-template-columns: 1fr 350px !important; /* Left: Auto, Right: Fixed */
+                grid-template-rows: 1fr 250px !important;    /* Top: Auto, Bottom: Fixed */
+                height: 100vh !important; 
                 margin: 0 !important; 
-                padding: 0 !important; 
-                height: 100vh !important; 
-                overflow: hidden !important; 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            
-            /* The Bokeh Chart (Left Side) */
-            /* We target the main Bokeh container class */
-            .bk-root { 
-                flex: 1 1 auto !important; 
-                width: 75% !important; 
-                height: 100vh !important; 
+                font-family: 'Segoe UI', sans-serif;
                 overflow: hidden !important;
             }
             
-            /* The Metrics Panel (Right Side) */
-            .side-panel { 
-                flex: 0 0 350px; /* Fixed width for stats */
-                height: 100vh; 
-                overflow-y: auto; 
-                background: #f8f9fa; 
-                border-left: 2px solid #dee2e6; 
-                padding: 20px; 
-                box-shadow: -4px 0 10px rgba(0,0,0,0.05);
-                z-index: 1000;
+            /* TOP LEFT: Chart */
+            .bk-root { 
+                grid-column: 1 / 2 !important;
+                grid-row: 1 / 2 !important;
+                width: 100% !important;
+                height: 100% !important;
+                border-bottom: 2px solid #ccc;
             }
             
-            /* Table Styling */
-            .metrics-table {
-                width: 100%;
-                border-collapse: collapse;
-                background: white;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                border-radius: 5px;
-                overflow: hidden;
+            /* BOTTOM LEFT: Strategy Info (New) */
+            .strategy-panel {
+                grid-column: 1 / 2 !important;
+                grid-row: 2 / 3 !important;
+                padding: 20px;
+                overflow-y: auto;
+                display: flex; gap: 30px; /* Split description and params */
             }
-            .metrics-table thead { background: #007bff; color: white; }
-            .metrics-table th, .metrics-table td { 
-                padding: 10px 15px; 
-                border-bottom: 1px solid #eee; 
-                font-size: 13px;
+
+            /* RIGHT: Metrics (Spans full height) */
+            .side-panel { 
+                grid-column: 2 / 3 !important;
+                grid-row: 1 / 3 !important;
+                background: #f8f9fa; 
+                border-left: 2px solid #ccc; 
+                padding: 20px; 
+                overflow-y: auto;
             }
-            .metrics-table tr:hover { background-color: #f1f1f1; }
-            h2 { color: #333; font-size: 18px; margin-top: 0; }
+
+            /* Table Styling (Reused) */
+            .metrics-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            .metrics-table td, th { padding: 8px; border-bottom: 1px solid #eee; }
+            h2 { margin-top: 0; font-size: 18px; border-bottom: 2px solid #007bff; display: inline-block;}
         </style>
         """
 
-        # 5. Define the Side Panel HTML
+        # 5. Define HTML for BOTH panels
+        # New Bottom-Left Panel
+        strategy_html = f"""
+        <div class="strategy-panel">
+            <div style="flex: 2;"> <h2>Logic</h2> <p>{desc}</p> </div>
+            <div style="flex: 1;"> <h2>Settings</h2> {params_html} </div>
+        </div>
+        """
+        
+        # Existing Right Panel
         side_panel_html = f"""
         <div class="side-panel">
-            <h2>Strategy Performance</h2>
+            <h2>Results</h2>
             {table_html}
-            <br>
-            <p style="font-size: 11px; color: #666;">Generated by Python Backtester</p>
         </div>
         """
 
-        # 6. Inject the CSS and HTML into the existing file
-        # Inject CSS before </head>
+        # 6. Inject CSS and BOTH HTML Panels
         html_content = html_content.replace("</head>", f"{custom_css}</head>")
+        # Append both panels to the end of the body
+        html_content = html_content.replace("</body>", f"{strategy_html}{side_panel_html}</body>")
         
         # Inject Side Panel before </body>
         html_content = html_content.replace("</body>", f"{side_panel_html}</body>")
