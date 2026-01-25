@@ -2,6 +2,7 @@
 # Ignore the "compiled" files (the .pyc files you saw earlier)
 __pycache__/
 *.pyc
+Backtesting_Engine.egg-info/
 
 # --- Jupyter Notebooks ---
 # Ignore the auto-save checkpoints created by Jupyter
@@ -17,6 +18,7 @@ __pycache__/
 
 # --- Outputs ---
 *.html
+
 
 # --- Virtual Environments ---
 # Ignore the folder where you install libraries (if you use one)

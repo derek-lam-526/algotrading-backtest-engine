@@ -1,14 +1,25 @@
+import sys
+import os
+
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(TESTS_DIR)
+
+# Add Project Root to Python's search path
+sys.path.append(PROJECT_ROOT)
+
+# --- START HERE ---
 import pandas as pd 
 from datetime import datetime
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit 
 
-import config 
-from data_manager import DataManager 
-import Indicators 
+from src.config import API_KEY, SECRET_KEY, OUTPUT_DIR
+from src.core import DataManager 
+import src.indicators as Indicators
+
 
 def verify_indicators():
-    dm = DataManager(config.API_KEY, config.SECRET_KEY)
-    symbol = "MU"
+    dm = DataManager(API_KEY, SECRET_KEY)
+    symbol = "SPY"
 
     end = datetime(2026,1,24)
     start = datetime(2024,1,1)
@@ -40,7 +51,7 @@ def verify_indicators():
     print("\n--- COMPARISON TABLE (Last 10 Candles) ---")
     print(output)
 
-    csv_name = "verify_data.csv"
+    csv_name = f"{OUTPUT_DIR}/verify_data.csv"
     output.to_csv(csv_name)
     print(f"\nSaved full data to {csv_name}.")
 
