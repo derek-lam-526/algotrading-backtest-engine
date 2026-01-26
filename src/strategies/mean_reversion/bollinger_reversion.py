@@ -8,18 +8,18 @@ class BollingerReversion(BaseStrategy):
     
     LOGIC:
     1. ENTRY (Long):
-       - Price closes BELOW the Lower Bollinger Band.
+       - Price closes BELOW the Lower Bollinger Band (SMA - 2 SD).
        - RSI is BELOW the Oversold threshold (e.g. 30).
        
     2. EXIT:
-       - Price reverts back to the Middle Bollinger Band (SMA).
+       - Price reverts back to the (SMA + SD).
        - OR RSI becomes Overbought (e.g. 70).
     """
     rsi_period = 14
     bb_period = 20
     bb_std = 2.0
-    oversold = 35
-    overbought = 65
+    oversold = 40
+    overbought = 80
     
     def init(self):
         super().init()
@@ -34,8 +34,6 @@ class BollingerReversion(BaseStrategy):
         )
 
         # Bollinger Bands
-        # Note: We use lambdas to unpack the tuple (Upper, Mid, Lower)
-        # Ideally, move this unpacking logic to indicators/technical.py for cleaner code
         self.upper = self.I(lambda: bollinger_bands(pd.Series(self.data.Close), self.bb_period, self.bb_std)[0], 
                             name="UpperBB", overlay=True, color="purple")
         

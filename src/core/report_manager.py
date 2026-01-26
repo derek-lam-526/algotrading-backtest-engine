@@ -1,134 +1,291 @@
 import os
 import pandas as pd
+import json
 
 class ReportGenerator:
     @staticmethod
     def save_report(backtest_instance, stats, filename, strategy_class=None):
         """
-        Generates a split-screen HTML report:
-        Left: Interactive Chart
-        Right: Performance Metrics Table
+        Generates a Dashboard HTML report:
+        - Top Left: Interactive Chart
+        - Right: Performance Metrics
+        - Bottom: Tabbed Panel (Strategy Info | Trade History)
         """
-        # Generate the standard Bokeh plot to a temporary file
+        # 1. Generate the standard Bokeh plot to a temporary file
         temp_file = "temp_plot.html"
         backtest_instance.plot(filename=temp_file, open_browser=False)
         
-        # Read the generated HTML content
+        # 2. Read the generated HTML content
         with open(temp_file, "r", encoding="utf-8") as f:
             html_content = f.read()
 
         report_title = os.path.basename(filename)
         html_content = html_content.replace("<title>temp_plot.html</title>", f"<title>{report_title}</title>")
         
-        # Clean up the Stats 
+        # --- PROCESS METRICS ---
         metrics = stats[stats.apply(lambda x: not isinstance(x, (pd.DataFrame, pd.Series, list)))]
         metrics_df = pd.DataFrame(metrics).reset_index()
         metrics_df.columns = ["Metric", "Value"]
-        
-        # Format numbers
         metrics_df["Value"] = metrics_df["Value"].apply(lambda x: str(round(x, 4)) if isinstance(x, float) else str(x))
-        
-        # Convert to HTML Table
-        table_html = metrics_df.to_html(index=False, classes="metrics-table", border=0)
+        metrics_html = metrics_df.to_html(index=False, classes="metrics-table", border=0)
 
-        desc = "No description."
+        # --- PROCESS TRADE HISTORY ---
+        trades = stats['_trades']
+        trades_count = len(trades)
+        trades_html = "<p style='color: #666; padding: 20px;'>No trades executed.</p>"
+        
+        if not trades.empty:
+            t_df = trades.copy()
+            # Round floats
+            numeric_cols = t_df.select_dtypes(include=['float']).columns
+            t_df[numeric_cols] = t_df[numeric_cols].round(4)
+            # Format Dates
+            date_cols = t_df.select_dtypes(include=['datetime']).columns
+            for col in date_cols:
+                t_df[col] = t_df[col].dt.strftime('%Y-%m-%d %H:%M')
+            
+            # Create Table
+            trades_html = t_df.to_html(index=False, classes="metrics-table trade-table", border=0)
+
+        # --- PROCESS STRATEGY INFO ---
+        desc = "No description available."
         params_html = "<p>No parameters.</p>"
         
         if strategy_class:
-            # Get Description
             if strategy_class.__doc__:
                 desc = strategy_class.__doc__.strip().replace("\n", "<br>")
             
-            # Get Parameters
             params = {k: v for k, v in strategy_class.__dict__.items() 
                     if not k.startswith('_') and isinstance(v, (int, float, str))}
             
             if params:
-                # Convert dict to simple HTML table rows
                 rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in params.items()])
-                params_html = f"<table class='metrics-table'>{rows}</table>"
+                params_html = f"<table class='metrics-table' style='width: auto;'>{rows}</table>"
 
 
-        # Define CSS Grid Layout
+        # --- CSS STYLING ---
         custom_css = """
         <style>
             /* GRID SETUP */
             body { 
                 display: grid !important; 
-                grid-template-columns: 1fr 350px !important; /* Left: Auto, Right: Fixed */
-                grid-template-rows: 1fr 250px !important;    /* Top: Auto, Bottom: Fixed */
+                /* minmax(0, 1fr) prevents the chart/table from forcing page width expansion */
+                grid-template-columns: minmax(0, 1fr) 340px !important; 
+                
+                /* CHANGED: Reduced bottom row height from 350px to 280px (shorter containers) */
+                grid-template-rows: 1fr 280px !important;    
+                
                 height: 100vh !important; 
+                min-height: 800px !important; 
+                
+                /* CHANGED: Disable main page horizontal scroll, keep vertical */
+                overflow-x: hidden !important;
+                overflow-y: auto !important;  
+                
                 margin: 0 !important; 
-                font-family: 'Segoe UI', sans-serif;
-                overflow: hidden !important;
+                padding: 15px !important;
+                box-sizing: border-box !important;
+                gap: 15px !important;
+                font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+                background-color: #eef2f5;
             }
             
+            /* PANELS */
+            .panel {
+                background: white;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                display: flex; flex-direction: column;
+                overflow: hidden;
+                position: relative;
+            }
+
             /* TOP LEFT: Chart */
             .bk-root { 
                 grid-column: 1 / 2 !important;
                 grid-row: 1 / 2 !important;
-                width: 100% !important;
-                height: 100% !important;
-                border-bottom: 2px solid #ccc;
+                width: 100% !important; height: 100% !important;
+                background: white; border-radius: 8px;
+                min-height: 400px;
             }
             
-            /* BOTTOM LEFT: Strategy Info (New) */
-            .strategy-panel {
-                grid-column: 1 / 2 !important;
-                grid-row: 2 / 3 !important;
-                padding: 20px;
-                overflow-y: auto;
-                display: flex; gap: 30px; /* Split description and params */
-            }
-
-            /* RIGHT: Metrics (Spans full height) */
+            /* RIGHT: Metrics */
             .side-panel { 
                 grid-column: 2 / 3 !important;
-                grid-row: 1 / 3 !important;
-                background: #f8f9fa; 
-                border-left: 2px solid #ccc; 
-                padding: 20px; 
+                grid-row: 1 / 3 !important; 
+                padding: 0; 
+            }
+            
+            /* SCROLLABLE CONTENT AREAS */
+            .side-content, .tab-content {
+                flex: 1;
+                min-height: 0; 
+                
+                /* Vertical Scroll for long lists */
                 overflow-y: auto;
+                
+                /* CHANGED: Horizontal Scroll for wide tables (PRESERVED) */
+                overflow-x: auto; 
             }
 
-            /* Table Styling (Reused) */
-            .metrics-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-            .metrics-table td, th { padding: 8px; border-bottom: 1px solid #eee; }
-            h2 { margin-top: 0; font-size: 18px; border-bottom: 2px solid #007bff; display: inline-block;}
+            /* BOTTOM LEFT: Tabs */
+            .bottom-panel {
+                grid-column: 1 / 2 !important;
+                grid-row: 2 / 3 !important;
+            }
+
+            /* TAB STYLING */
+            .tab-header {
+                display: flex;
+                background-color: #f8f9fa;
+                border-bottom: 1px solid #d1d5db;
+                flex-shrink: 0; 
+            }
+            .tab-btn {
+                padding: 12px 20px;
+                cursor: pointer;
+                background: transparent;
+                border: none;
+                font-size: 14px;
+                font-weight: 600;
+                color: #555;
+                outline: none;
+                transition: 0.2s;
+            }
+            .tab-btn:hover { background-color: #e9ecef; }
+            .tab-btn.active {
+                background-color: white;
+                color: #007bff;
+                border-bottom: 3px solid #007bff;
+            }
+            
+            /* TAB CONTENT */
+            .tab-content {
+                display: none; 
+                padding: 0; 
+                background: white;
+            }
+            .tab-content.active { display: block; }
+            
+            .content-wrapper { padding: 20px; } 
+
+            /* TABLE STYLING */
+            .metrics-table { 
+                width: 100%; 
+                border-collapse: separate; 
+                border-spacing: 0;
+                font-size: 13px; 
+            }
+            
+            /* Sticky Header */
+            .metrics-table th { 
+                position: sticky; 
+                top: 0; 
+                z-index: 50; 
+                background-color: #f1f3f5; 
+                color: #333;
+                text-align: left; 
+                font-weight: 600; 
+                padding: 10px;
+                border-bottom: 2px solid #ddd;
+                box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); 
+            }
+            
+            .metrics-table td { 
+                padding: 8px 10px; 
+                border-bottom: 1px solid #eee; 
+                background-color: white; 
+                white-space: nowrap;     
+            }
+            
+            /* Fix last row padding */
+            .metrics-table tr:last-child td {
+                border-bottom: none;
+                padding-bottom: 20px;
+            }
+
+            .metrics-table tr:hover td { background-color: #f8f9fa; }
+            
+            h2 { font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #007bff; display: inline-block; padding-bottom: 4px; }
+            
+            /* Custom Scrollbar Styling */
+            ::-webkit-scrollbar { width: 8px; height: 8px; }
+            ::-webkit-scrollbar-track { background: #f1f1f1; }
+            ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: #bbb; }
         </style>
         """
 
-        # Define HTML for BOTH panels
-        # New Bottom-Left Panel
-        strategy_html = f"""
-        <div class="strategy-panel">
-            <div style="flex: 2;"> <h2>Logic</h2> <p>{desc}</p> </div>
-            <div style="flex: 1;"> <h2>Settings</h2> {params_html} </div>
-        </div>
+        # --- JAVASCRIPT ---
+        tab_script = """
+        <script>
+            function openTab(evt, tabName) {
+                var i, tabcontent, tablinks;
+                tabcontent = document.getElementsByClassName("tab-content");
+                for (i = 0; i < tabcontent.length; i++) {
+                    tabcontent[i].className = tabcontent[i].className.replace(" active", "");
+                    if(tabcontent[i].id !== tabName) tabcontent[i].style.display = "none";
+                }
+                tablinks = document.getElementsByClassName("tab-btn");
+                for (i = 0; i < tablinks.length; i++) {
+                    tablinks[i].className = tablinks[i].className.replace(" active", "");
+                }
+                var activeTab = document.getElementById(tabName);
+                activeTab.style.display = "block";
+                activeTab.className += " active";
+                evt.currentTarget.className += " active";
+            }
+        </script>
         """
+
+        # --- HTML STRUCTURE ---
         
-        # Existing Right Panel
+        # 1. Right Panel
         side_panel_html = f"""
-        <div class="side-panel">
-            <h2>Results</h2>
-            {table_html}
+        <div class="panel side-panel">
+            <div class="content-wrapper" style="flex-shrink: 0;">
+                <h2>Performance Metrics</h2>
+            </div>
+            <div class="side-content">
+                {metrics_html}
+            </div>
         </div>
         """
 
-        # Inject CSS and BOTH HTML Panels
-        html_content = html_content.replace("</head>", f"{custom_css}</head>")
-        # Append both panels to the end of the body
-        html_content = html_content.replace("</body>", f"{strategy_html}{side_panel_html}</body>")
-        
-        # Inject Side Panel before </body>
-        html_content = html_content.replace("</body>", f"{side_panel_html}</body>")
+        # 2. Bottom Panel
+        bottom_panel_html = f"""
+        <div class="panel bottom-panel">
+            <div class="tab-header">
+                <button class="tab-btn active" onclick="openTab(event, 'TabStrategy')">Strategy Info</button>
+                <button class="tab-btn" onclick="openTab(event, 'TabTrades')">Trade History ({trades_count})</button>
+            </div>
 
-        # Save Final Report
+            <div id="TabStrategy" class="tab-content active">
+                <div class="content-wrapper" style="display: flex; gap: 40px;">
+                    <div style="flex: 2; border-right: 1px solid #eee; padding-right: 20px;"> 
+                        <h2>Logic</h2> 
+                        <p style="line-height: 1.6; color: #333;">{desc}</p> 
+                    </div>
+                    <div style="flex: 1;"> 
+                        <h2>Settings</h2> 
+                        {params_html} 
+                    </div>
+                </div>
+            </div>
+
+            <div id="TabTrades" class="tab-content">
+                {trades_html}
+            </div>
+        </div>
+        """
+
+        # --- INJECTION ---
+        html_content = html_content.replace("</head>", f"{custom_css}{tab_script}</head>")
+        html_content = html_content.replace("</body>", f"{bottom_panel_html}{side_panel_html}</body>")
+
         with open(filename, "w", encoding="utf-8") as f:
             f.write(html_content)
         
-        # Cleanup temp file
         if os.path.exists(temp_file):
             os.remove(temp_file)
-            
-        print(f"Advanced report saved to: {filename}")

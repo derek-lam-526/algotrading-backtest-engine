@@ -5,6 +5,7 @@ from datetime import timedelta
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
+from alpaca.data.enums import Adjustment
 
 from config import DATA_DIR
 
@@ -22,8 +23,7 @@ class DataManager:
         print(f"DEBUG: DataManager received timeframe: {timeframe} (Value: {timeframe.value})")
         
         tf_tag = timeframe.value
-        
-        # Define BOTH paths
+
         parquet_path = os.path.join(DATA_DIR, f"{symbol}_{tf_tag}.parquet")
         csv_path = os.path.join(DATA_DIR, f"{symbol}_{tf_tag}.csv")
         
@@ -75,7 +75,7 @@ class DataManager:
         else:
             print("   Local data covers the requested range.")
             
-            # Edge Case: If Parquet exists but User deleted CSV manually, re-create CSV
+            # If Parquet exists but User deleted CSV manually, re-create CSV
             if not os.path.exists(csv_path):
                 print("   (Restoring missing CSV backup...)")
                 df.to_csv(csv_path)
@@ -92,7 +92,8 @@ class DataManager:
             symbol_or_symbols=[symbol],
             timeframe=timeframe,
             start=start,
-            end=end
+            end=end,
+            adjustment=Adjustment.ALL
         )
         try:
             bars = self.client.get_stock_bars(req)
