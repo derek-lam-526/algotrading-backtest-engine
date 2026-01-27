@@ -6,8 +6,7 @@ from backtesting import Backtest
 
 import config
 from core.data_manager import DataManager
-from strategies.mean_reversion.bollinger_reversion import BollingerReversion
-from strategies.trend.sma_cross import SmaCross
+from strategies import BollingerReversion, SmaCross, MonthlyDCA
 from core.report_manager import ReportGenerator
 
 def check_api_loaded():
@@ -15,13 +14,13 @@ def check_api_loaded():
 
 def run_simple_backtest():
     # Configure backtest
-    SYMBOL = "SPY"
-    START = datetime(2022, 1, 1)
-    # END = datetime(2026, 1, 23)
-    END = datetime.today() - timedelta(days = 1)
-    STRATEGY_CLASS = BollingerReversion
+    SYMBOL = "VOO"
+    START = datetime(2023, 1, 1)
+    END = datetime(2026, 1, 15)
+    # END = datetime.today() - timedelta(days = 1)
+    STRATEGY_CLASS = MonthlyDCA
     TF = TimeFrame(1, TimeFrameUnit.Day) # Minute, Hour, Day, Week, Month
-    INITIAL_CASH = 10000
+    INITIAL_CASH = 50000
     COMMISSION = (0.35, 0.001) # (minimum charge, percentage)
 
     # Check if API key loaded
@@ -33,6 +32,7 @@ def run_simple_backtest():
 
     # Get Data
     df = dm.get_data(SYMBOL, START, END, timeframe=TF)
+    print(df.tail().index.dtype)
     
     if not os.path.exists(config.OUTPUT_DIR):
         os.makedirs(config.OUTPUT_DIR)
@@ -54,8 +54,6 @@ def run_simple_backtest():
         date_str = f"{START.strftime('%Y%m%d')}-{END.strftime('%Y%m%d')}"
         return_pct = round(stats['Return [%]'], 2)
         
-
-
         # Construct Final Name
         filename = f"{SYMBOL}_{strat_name}_{date_str}_{TF.value}_Ret{return_pct}.html"
         

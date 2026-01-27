@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 Backtesting_Engine.egg-info/
+tempCodeRunnerFile.py
 
 # --- Jupyter Notebooks ---
 # Ignore the auto-save checkpoints created by Jupyter
