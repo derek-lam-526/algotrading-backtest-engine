@@ -6,13 +6,32 @@ from datetime import datetime
 
 class ReportGenerator:
     @staticmethod
-    def save_report(backtest_instance, stats, filename, strategy_class=None, output_dir="output"):
+    def save_report(backtest_instance, stats, symbol, timeframe, strategy_class=None, output_dir="output"):
         """
         Generates a Dashboard HTML report:
         - Top Left: Interactive Chart
         - Right: Performance Metrics
         - Bottom: Tabbed Panel (Strategy Info | Trade History)
         """
+        
+        strat_name = strategy_class.__name__
+        strat_class = strategy_class
+
+        output_folder = os.path.join(output_dir, strat_name, symbol)
+        os.makedirs(output_folder, exist_ok=True)
+
+        start_date = stats["Start"].strftime("%Y%m%d")
+        end_date = stats["End"].strftime("%Y%m%d")
+
+        def safe_val(val): 
+            return val if (val and str(val) != 'nan') else 0.0
+        
+        return_pct = round(stats['Return [%]'], 2)
+        sharpe = safe_val(stats['Sharpe Ratio'])
+        sharpe_str = f"{sharpe:.2f}"
+
+        filename = f"{strat_name}_{symbol}_{timeframe.value}_{start_date}-{end_date}_Ret{return_pct}_Shrp{sharpe_str}.html"
+        full_path = os.path.join(output_folder, filename)
         
         # 1. Generate the standard Bokeh plot to a temporary file
         temp_file = "temp_plot.html"
@@ -65,9 +84,104 @@ class ReportGenerator:
                 rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in params.items()])
                 params_html = f"<table class='metrics-table' style='width: auto;'>{rows}</table>"
 
+        custom_css = ReportGenerator._get_css()
+        tab_script = ReportGenerator._get_js()
 
-        # --- CSS STYLING ---
-        custom_css = """
+        # --- HTML STRUCTURE ---
+        
+        # 1. Right Panel
+        side_panel_html = f"""
+        <div class="panel side-panel">
+            <div class="content-wrapper" style="flex-shrink: 0;">
+                <h2>Performance Metrics</h2>
+            </div>
+            <div class="side-content">
+                {metrics_html}
+            </div>
+        </div>
+        """
+
+        # 2. Bottom Panel
+        bottom_panel_html = f"""
+        <div class="panel bottom-panel">
+            <div class="tab-header">
+                <button class="tab-btn active" onclick="openTab(event, 'TabStrategy')">Strategy Info</button>
+                <button class="tab-btn" onclick="openTab(event, 'TabTrades')">Trade History ({trades_count})</button>
+            </div>
+
+            <div id="TabStrategy" class="tab-content active">
+                <div class="content-wrapper" style="display: flex; gap: 40px;">
+                    <div style="flex: 2; border-right: 1px solid #eee; padding-right: 20px;"> 
+                        <h2>Logic</h2> 
+                        <p style="line-height: 1.6; color: #333;">{desc}</p> 
+                    </div>
+                    <div style="flex: 1;"> 
+                        <h2>Settings</h2> 
+                        {params_html} 
+                    </div>
+                </div>
+            </div>
+
+            <div id="TabTrades" class="tab-content">
+                {trades_html}
+            </div>
+        </div>
+        """
+
+        # --- INJECTION ---
+        html_content = html_content.replace("</head>", f"{custom_css}{tab_script}</head>")
+        html_content = html_content.replace("</body>", f"{bottom_panel_html}{side_panel_html}</body>")
+
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+            print(f"\nPlot saved to: {full_path}")
+        
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+
+        log_file = os.path.join(output_dir, strat_name, "summary_log.csv")
+        ReportGenerator._append_to_log(log_file, stats, symbol, timeframe, full_path)
+
+    @staticmethod
+    def _append_to_log(filepath, stats, symbol, timeframe, html_path):
+        """Appends a single row of metrics to a CSV file."""
+        file_exists = os.path.isfile(filepath)
+        
+        fieldnames = [
+            'Run_Time', 'Symbol', 'Timeframe', 'Start', 'End', 
+            'Return_Pct', 'Sharpe_Ratio', 'Max_DD', 'Win_Rate', '#_Trades', 'Report_Path'
+        ]
+        
+        def safe_round(val):
+            try: return round(float(val), 2)
+            except: return 0.0
+
+        data = {
+            'Run_Time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'Symbol': symbol,
+            'Timeframe': timeframe,
+            'Start': stats['Start'].strftime('%Y-%m-%d'),
+            'End': stats['End'].strftime('%Y-%m-%d'),
+            'Return_Pct': safe_round(stats['Return [%]']),
+            'Sharpe_Ratio': safe_round(stats['Sharpe Ratio']),
+            'Max_DD': safe_round(stats['Max. Drawdown [%]']),
+            'Win_Rate': safe_round(stats['Win Rate [%]']),
+            '#_Trades': stats['# Trades'],
+            'Report_Path': html_path
+        }
+        
+        try:
+            with open(filepath, 'a', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                if not file_exists: writer.writeheader()
+                writer.writerow(data)
+            print(f"Stats logged to: {filepath}")
+        except Exception as e:
+            print(f"CSV Log Error: {e}")
+
+    @staticmethod
+    def _get_css():
+        return """
         <style>
             /* GRID SETUP */
             body { 
@@ -219,9 +333,10 @@ class ReportGenerator:
             ::-webkit-scrollbar-thumb:hover { background: #bbb; }
         </style>
         """
-
-        # --- JAVASCRIPT ---
-        tab_script = """
+    
+    @staticmethod
+    def _get_js():
+        return """
         <script>
             function openTab(evt, tabName) {
                 var i, tabcontent, tablinks;
@@ -241,54 +356,3 @@ class ReportGenerator:
             }
         </script>
         """
-
-        # --- HTML STRUCTURE ---
-        
-        # 1. Right Panel
-        side_panel_html = f"""
-        <div class="panel side-panel">
-            <div class="content-wrapper" style="flex-shrink: 0;">
-                <h2>Performance Metrics</h2>
-            </div>
-            <div class="side-content">
-                {metrics_html}
-            </div>
-        </div>
-        """
-
-        # 2. Bottom Panel
-        bottom_panel_html = f"""
-        <div class="panel bottom-panel">
-            <div class="tab-header">
-                <button class="tab-btn active" onclick="openTab(event, 'TabStrategy')">Strategy Info</button>
-                <button class="tab-btn" onclick="openTab(event, 'TabTrades')">Trade History ({trades_count})</button>
-            </div>
-
-            <div id="TabStrategy" class="tab-content active">
-                <div class="content-wrapper" style="display: flex; gap: 40px;">
-                    <div style="flex: 2; border-right: 1px solid #eee; padding-right: 20px;"> 
-                        <h2>Logic</h2> 
-                        <p style="line-height: 1.6; color: #333;">{desc}</p> 
-                    </div>
-                    <div style="flex: 1;"> 
-                        <h2>Settings</h2> 
-                        {params_html} 
-                    </div>
-                </div>
-            </div>
-
-            <div id="TabTrades" class="tab-content">
-                {trades_html}
-            </div>
-        </div>
-        """
-
-        # --- INJECTION ---
-        html_content = html_content.replace("</head>", f"{custom_css}{tab_script}</head>")
-        html_content = html_content.replace("</body>", f"{bottom_panel_html}{side_panel_html}</body>")
-
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(html_content)
-        
-        if os.path.exists(temp_file):
-            os.remove(temp_file)

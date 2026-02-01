@@ -50,20 +50,14 @@ def run_simple_backtest():
         
         s_sym = pd.Series([SYMBOL], index=['Symbol'])
         stats = pd.concat([s_sym, stats])
-
-        strat_name = STRATEGY_CLASS.__name__
-        date_str = f"{START.strftime('%Y%m%d')}-{END.strftime('%Y%m%d')}"
-        return_pct = round(stats['Return [%]'], 2)
-        
-        # Construct Final Name
-        filename = f"{SYMBOL}_{strat_name}_{date_str}_{TF.value}_Ret{return_pct}.html"
-        folder = f"{config.OUTPUT_DIR}/{strat_name}/{SYMBOL}"
-        os.makedirs(folder, exist_ok=True) 
-        full_path = os.path.join(folder, filename)
         
         # Save
-        ReportGenerator.save_report(bt, stats, full_path, strategy_class=STRATEGY_CLASS)
-        print(f"\nPlot saved to: {full_path}")
+        ReportGenerator.save_report(backtest_instance=bt, 
+                                    stats=stats, 
+                                    symbol=SYMBOL, 
+                                    timeframe=TF, 
+                                    strategy_class=STRATEGY_CLASS, 
+                                    output_dir=config.OUTPUT_DIR)
         
     else:
         print("No data available.")
