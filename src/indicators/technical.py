@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 
+def sma(series, period=20):
+    return series.Close.rolling(14).mean()
+
 def rsi(series, period=14):
     """
     Computes the Relative Strength Index (RSI).

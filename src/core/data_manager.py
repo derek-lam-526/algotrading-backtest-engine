@@ -7,7 +7,7 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 from alpaca.data.enums import Adjustment
 
-from config import DATA_DIR
+from config import PARQUET_DIR, CSV_DIR
 
 class DataManager:
     def __init__(self, api_key, secret_key):
@@ -24,8 +24,8 @@ class DataManager:
         
         tf_tag = timeframe.value
 
-        parquet_path = os.path.join(DATA_DIR, f"{symbol}_{tf_tag}.parquet")
-        csv_path = os.path.join(DATA_DIR, f"{symbol}_{tf_tag}.csv")
+        parquet_path = os.path.join(PARQUET_DIR, f"{symbol}_{tf_tag}.parquet")
+        csv_path = os.path.join(CSV_DIR, f"{symbol}_{tf_tag}.csv")
         
         req_start = self.ny_tz.localize(start_date)
         req_end = self.ny_tz.localize(end_date)

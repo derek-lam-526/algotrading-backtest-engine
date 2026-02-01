@@ -1,16 +1,19 @@
 import os
 import pandas as pd
 import json
+import csv
+from datetime import datetime 
 
 class ReportGenerator:
     @staticmethod
-    def save_report(backtest_instance, stats, filename, strategy_class=None):
+    def save_report(backtest_instance, stats, filename, strategy_class=None, output_dir="output"):
         """
         Generates a Dashboard HTML report:
         - Top Left: Interactive Chart
         - Right: Performance Metrics
         - Bottom: Tabbed Panel (Strategy Info | Trade History)
         """
+        
         # 1. Generate the standard Bokeh plot to a temporary file
         temp_file = "temp_plot.html"
         backtest_instance.plot(filename=temp_file, open_browser=False)

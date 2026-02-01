@@ -16,9 +16,9 @@ class BollingerReversion(BaseStrategy):
        - OR RSI becomes Overbought (e.g. 70).
     """
     rsi_period = 14
-    bb_period = 20
+    bb_period = 50
     bb_std = 2.0
-    oversold = 40
+    oversold = 30
     overbought = 80
     
     def init(self):
