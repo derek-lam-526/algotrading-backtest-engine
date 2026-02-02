@@ -13,10 +13,9 @@ class ReportGenerator:
         - Right: Performance Metrics
         - Bottom: Tabbed Panel (Strategy Info | Trade History)
         """
-        
-        strat_name = strategy_class.__class__.__name__
-        strat = strategy_class.__class__
-
+        strat_instance = stats._strategy
+        strat_name = strat_instance.__class__.__name__
+        strat_doc = strat_instance.__class__.__doc__
 
         output_folder = os.path.join(output_dir, strat_name, symbol)
         os.makedirs(output_folder, exist_ok=True)
@@ -72,18 +71,29 @@ class ReportGenerator:
 
         # --- PROCESS STRATEGY INFO ---
         desc = "No description available."
+        if strat_doc:
+            desc = strat_doc.strip().replace("\n", "<br>")
+
         params_html = "<p>No parameters.</p>"
+
+        params = {}
+        BLACKLIST = {
+            'broker', 'data', 'orders', 'position', 'trades', 'closed_trades', 
+            'equity', 'cash', 'commission', 'margin', 'trade_on_close', 'hedging'
+        }
         
-        if strat:
-            if strat.__doc__:
-                desc = strat.__doc__.strip().replace("\n", "<br>")
-            
-            params = {k: v for k, v in strat.__dict__.items() 
-                    if not k.startswith('_') and isinstance(v, (int, float, str))}
-            
-            if params:
-                rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in params.items()])
-                params_html = f"<table class='metrics-table' style='width: auto;'>{rows}</table>"
+        for name in dir(strat_instance):
+            if name.startswith('_') or name in BLACKLIST: continue
+            try:
+                val = getattr(strat_instance, name)
+                # Only keep simple types (numbers/strings)
+                if isinstance(val, (int, float, str, bool)):
+                    params[name] = val
+            except: continue
+
+        if params:
+            rows = "".join([f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in params.items()])
+            params_html = f"<table class='metrics-table' style='width: auto;'>{rows}</table>"
 
         custom_css = ReportGenerator._get_css()
         tab_script = ReportGenerator._get_js()
@@ -148,13 +158,24 @@ class ReportGenerator:
         """Appends a single row of metrics to a CSV file."""
         file_exists = os.path.isfile(filepath)
 
-        strat = stats._strategy
+        strat_obj = stats._strategy
+        params = {}
+        strat_name = strat_obj.__class__.__name__
 
-        params = {k: v for k, v in strat.__class__.__dict__.items() 
-                    if not k.startswith('_') and isinstance(v, (int, float, str))}
-        
-        strat_name = strat.__class__.__name__
-        
+        BLACKLIST = {
+            'broker', 'data', 'orders', 'position', 'trades', 'closed_trades', 
+            'equity', 'cash', 'commission', 'margin', 'trade_on_close', 'hedging'
+        }
+
+        # Scan the instance attributes, not the class dictionary
+        for name in dir(strat_obj):
+            if name.startswith('_') or name in BLACKLIST: continue
+            try:
+                val = getattr(strat_obj, name)
+                if isinstance(val, (int, float, bool, str)):
+                    params[name] = val
+            except: continue
+
         param_str = " | ".join([f"{k}:{v}" for k,v in params.items()])
 
         fieldnames = [
