@@ -3,6 +3,33 @@ import pandas as pd
 from strategies.base import BaseStrategy
 
 class MonthlyDCA(BaseStrategy):
+    """
+    Monthly Dollar Cost Averaging (DCA) Strategy.
+
+    This is a passive investment benchmark strategy. It ignores technical indicators 
+    and simply buys a fixed dollar amount of the asset on the first trading day of 
+    every month. It is designed to simulate a long-term accumulation portfolio 
+    to compare against active trading performance.
+
+    PARAMETERS
+    ----------
+    monthly_contribution : int (Default: 2000)
+        The fixed amount of cash to invest each month. The strategy calculates the 
+        maximum number of whole shares this amount can purchase at the current 
+        price and executes the order.
+
+    LOGIC
+    -----
+    1. ENTRY (Monthly): 
+       - Detects the first trading day of a new month (Current Month != Previous Month).
+       - Calculates size = floor(monthly_contribution / Current Price).
+       - Buys that quantity if sufficient cash is available in the account.
+       
+    2. EXIT: 
+       - HOLD: Positions are never sold during the backtest period.
+       - FORCE CLOSE: All positions are liquidated on the second-to-last candle 
+         of the dataset to strictly realize the final PnL for the report.
+    """
     
     monthly_contribution = 2000
 

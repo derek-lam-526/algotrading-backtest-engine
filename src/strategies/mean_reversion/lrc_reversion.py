@@ -43,14 +43,55 @@ def rolling_lrc_metrics(close, window=10, num_std=2, days_per_year=252):
             width_rank.values)
 
 class LrcReversion(BaseStrategy):
+    """
+    Linear Regression Channel (LRC) Mean Reversion Strategy.
+    
+    This strategy attempts to capture mean-reversion moves when price extends beyond 
+    statistical bounds (Standard Deviations) of a rolling Linear Regression Channel.
+    It includes filters to avoid catching falling knives during strong trends or 
+    entering during volatility squeezes.
+
+    PARAMETERS
+    ----------
+    lrc_window : int (Default: 40)
+        The lookback period for calculating the Linear Regression Channel.
+        
+    n_std : float (Default: 2)
+        The width of the channel bands in Standard Deviations (adjusted for SEE).
+        
+    slope_threshold : float (Default: 15)
+        Filter: The maximum allowed annualized slope %. If the channel is steeping 
+        down faster than this, Long entries are blocked (avoids strong trends).
+        
+    r2_threshold : float (Default: 0.4)
+        Filter: The minimum R-Squared (0-1) required to activate the Slope Filter.
+        If R2 is high, the trend is "smooth/strong", so we respect the Slope block.
+        
+    squeeze_percentile : float (Default: 0.2)
+        Filter: Avoid entries if the Channel Width is in the bottom 20% of its
+        history (indicates a 'Squeeze' where explosive breakouts often occur).
+        
+    stop_loss_pct : float (Default: 0.05)
+        Hard Stop Loss distance (0.05 = 5%).
+
+    LOGIC
+    -----
+    1. ENTRY (Long): 
+       - Price crosses below the Lower LRC Band.
+       - FILTER 1 (Anti-Knife): Entry is rejected if Slope < -slope_threshold 
+         AND R2 > r2_threshold (Signal: Trend is too strong to fade).
+       - FILTER 2 (Squeeze): Entry is rejected if width is in bottom percentile.
+    
+    2. EXIT: 
+       - Take Profit: Price reverts to the midpoint (Average of Center & Upper Band).
+       - Stop Loss: Fixed % from entry price.
+    """
     
     lrc_window = 40
     n_std = 2
-
     slope_threshold = 15
     r2_threshold = 0.4
     squeeze_percentile = 0.2
-
     stop_loss_pct = 0.05
     
     def init(self):

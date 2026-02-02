@@ -16,26 +16,33 @@ def get_macd(close, fast, slow, signal, hist=False):
 
 class MacdCross(BaseStrategy):
     """
-    MACD Momentum Crossover Strategy
-    
-    OVERVIEW:
-    This strategy captures market momentum by tracking the relationship between 
-    short-term (Fast) and long-term (Slow) moving averages. It aims to enter 
-    trends as they accelerate and exit when momentum fades.
+    Moving Average Convergence Divergence (MACD) Trend Strategy.
 
-    LOGIC:
+    This is a classic momentum strategy based on the convergence and divergence 
+    of two exponential moving averages. It assumes that when the MACD line crosses 
+    above its signal line, momentum is shifting bullish, and vice versa. It is an 
+    always-in (or stop-and-reverse) system in its current configuration.
+
+    PARAMETERS
+    ----------
+    macd_fast : int (Default: 12)
+        The lookback period for the Fast EMA (Short-term trend).
+        
+    macd_slow : int (Default: 26)
+        The lookback period for the Slow EMA (Long-term trend).
+        
+    macd_signal : int (Default: 9)
+        The smoothing period applied to the MACD line to generate the Signal Line.
+
+    LOGIC
+    -----
     1. ENTRY (Long): 
-       - Triggered when the MACD Line crosses ABOVE the Signal Line (Golden Cross).
-       - Indicates bullish momentum is increasing.
+       - Bullish Crossover: The MACD line crosses ABOVE the Signal line.
+       - This indicates short-term momentum is rising faster than the long-term average.
        
-    2. EXIT:
-       - Triggered when the MACD Line crosses BELOW the Signal Line (Death Cross).
-       - Indicates bullish momentum is weakening or reversing.
-
-    INDICATORS:
-    - MACD Line: Difference between 12-period and 26-period EMAs.
-    - Signal Line: 9-period EMA of the MACD Line.
-    - Histogram: Visual difference between MACD and Signal (plotted separately).
+    2. EXIT: 
+       - Bearish Crossover: The MACD line crosses BELOW the Signal line.
+       - The position is closed immediately when momentum flips bearish.
     """
     
     macd_fast = 12

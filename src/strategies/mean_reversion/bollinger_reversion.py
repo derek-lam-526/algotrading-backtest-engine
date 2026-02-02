@@ -4,17 +4,41 @@ from indicators.technical import rsi, bollinger_bands # Assuming you moved your 
 
 class BollingerReversion(BaseStrategy):
     """
-    Bollinger Band Mean Reversion Strategy.
-    
-    LOGIC:
-    1. ENTRY (Long):
-       - Price closes BELOW the Lower Bollinger Band (SMA - 2 SD).
-       - RSI is BELOW the Oversold threshold (e.g. 30).
+    Bollinger Band & RSI Mean Reversion Strategy.
+
+    This strategy identifies oversold conditions by combining statistical extremes
+    (Bollinger Bands) with momentum confirmation (RSI). It aims to buy when price
+    deviates significantly from its moving average while momentum is weak, and exits
+    on mean reversion or momentum recovery.
+
+    PARAMETERS
+    ----------
+    rsi_period : int (Default: 14)
+        The lookback period for the Relative Strength Index (RSI).
+
+    bb_period : int (Default: 50)
+        The lookback period for the Bollinger Band Moving Average (Basis).
+        
+    bb_std : float (Default: 2.0)
+        The width of the bands in Standard Deviations.
+        
+    oversold : int (Default: 30)
+        Threshold: RSI must be BELOW this value to confirm a Long Entry.
+        
+    overbought : int (Default: 80)
+        Threshold: If RSI goes ABOVE this value, the position is closed (Panic Exit).
+
+    LOGIC
+    -----
+    1. ENTRY (Long): 
+       - Price crosses below the Lower Bollinger Band (Statistical extreme).
+       - AND RSI is below the 'oversold' threshold (Momentum confirmation).
        
-    2. EXIT:
-       - Price reverts back to the (SMA + SD).
-       - OR RSI becomes Overbought (e.g. 70).
+    2. EXIT: 
+       - Mean Reversion: Price crosses above the midpoint of the Upper and Middle Band.
+       - Momentum Exhaustion: RSI exceeds the 'overbought' threshold.
     """
+
     rsi_period = 14
     bb_period = 50
     bb_std = 2.0

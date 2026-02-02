@@ -28,6 +28,48 @@ def get_bbands_lower_ta(close, length, lower_std=2, upper_std=2):
     return df.iloc[:,0].values
 
 class ParabolicTrail(BaseStrategy):
+    """
+    Parabolic SAR Trend Strategy with Weighted Trailing Stop.
+
+    This strategy captures trends by entering when price is above the Parabolic SAR.
+    Unlike standard systems that place the Stop Loss exactly at the SAR value, this
+    strategy calculates a custom "Tightened" Stop Loss that sits between the daily 
+    Low and the SAR value. This allows for securing profits more aggressively while 
+    still using the SAR as the trend baseline.
+
+    PARAMETERS
+    ----------
+    af0 : float (Default: 0.02)
+        Initial Acceleration Factor for the Parabolic SAR.
+        
+    af : float (Default: 0.02)
+        Step (increment) for the Acceleration Factor when a new extreme is reached.
+        
+    max_af : float (Default: 0.2)
+        Maximum limit for the Acceleration Factor (caps the sensitivity).
+        
+    sl_sma_window : int (Default: 20)
+        Lookback period for the reference SMA/Bollinger Bands (used for calculation
+        and potential secondary exit logic).
+        
+    sl_std_lower : int (Default: 1)
+        Standard Deviation setting for the Lower Bollinger Band calculation.
+
+    LOGIC
+    -----
+    1. ENTRY (Long): 
+       - Condition: Price closes ABOVE the Parabolic SAR value.
+       - Initial Stop Loss: Calculated as the weighted average: (Current Low + 2 * SAR) / 3.
+         (This places the stop slightly higher/tighter than the raw SAR dot).
+
+    2. MANAGEMENT (Trailing Stop):
+       - On every new candle, the Stop Loss is recalculated using the same formula:
+         New_SL = (Current Low + 2 * Current SAR) / 3.
+       - The Stop moves UP only (ratchet mechanism). It never loosens.
+
+    3. EXIT: 
+       - Trend Reversal: Price crosses BELOW the Parabolic SAR line.
+    """
     
     af0 = 0.02
     af = 0.02
