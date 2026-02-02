@@ -14,8 +14,9 @@ class ReportGenerator:
         - Bottom: Tabbed Panel (Strategy Info | Trade History)
         """
         
-        strat_name = strategy_class.__name__
-        strat_class = strategy_class
+        strat_name = strategy_class.__class__.__name__
+        strat = strategy_class.__class__
+
 
         output_folder = os.path.join(output_dir, strat_name, symbol)
         os.makedirs(output_folder, exist_ok=True)
@@ -73,11 +74,11 @@ class ReportGenerator:
         desc = "No description available."
         params_html = "<p>No parameters.</p>"
         
-        if strategy_class:
-            if strategy_class.__doc__:
-                desc = strategy_class.__doc__.strip().replace("\n", "<br>")
+        if strat:
+            if strat.__doc__:
+                desc = strat.__doc__.strip().replace("\n", "<br>")
             
-            params = {k: v for k, v in strategy_class.__dict__.items() 
+            params = {k: v for k, v in strat.__dict__.items() 
                     if not k.startswith('_') and isinstance(v, (int, float, str))}
             
             if params:
@@ -146,10 +147,22 @@ class ReportGenerator:
     def _append_to_log(filepath, stats, symbol, timeframe, html_path):
         """Appends a single row of metrics to a CSV file."""
         file_exists = os.path.isfile(filepath)
+
+        strat = stats._strategy
+
+        params = {k: v for k, v in strat.__class__.__dict__.items() 
+                    if not k.startswith('_') and isinstance(v, (int, float, str))}
         
+        strat_name = strat.__class__.__name__
+        
+        param_str = " | ".join([f"{k}:{v}" for k,v in params.items()])
+
         fieldnames = [
-            'Run_Time', 'Symbol', 'Timeframe', 'Start', 'End', 
-            'Return_Pct', 'Sharpe_Ratio', 'Max_DD', 'Win_Rate', '#_Trades', 'Report_Path'
+            'Run_Time', 'Symbol', 'Timeframe', 'Strategy',
+            'Start', 'End', 
+            'Return_Pct', 'Sharpe_Ratio', 'Max_DD', 'Win_Rate', '#_Trades',
+            'Parameters', 
+            'Report_Path'
         ]
         
         def safe_round(val):
@@ -158,6 +171,7 @@ class ReportGenerator:
 
         data = {
             'Run_Time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'Strategy': strat_name,
             'Symbol': symbol,
             'Timeframe': timeframe,
             'Start': stats['Start'].strftime('%Y-%m-%d'),
@@ -167,6 +181,7 @@ class ReportGenerator:
             'Max_DD': safe_round(stats['Max. Drawdown [%]']),
             'Win_Rate': safe_round(stats['Win Rate [%]']),
             '#_Trades': stats['# Trades'],
+            'Parameters': param_str,
             'Report_Path': html_path
         }
         
