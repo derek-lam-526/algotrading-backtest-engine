@@ -123,7 +123,7 @@ class ReportGenerator:
             <div id="TabStrategy" class="tab-content active">
                 <div class="content-wrapper" style="display: flex; gap: 40px;">
                     <div style="flex: 2; border-right: 1px solid #eee; padding-right: 20px;"> 
-                        <h2>Logic</h2> 
+                        <h2>Strategy Description</h2> 
                         <p style="line-height: 1.6; color: #333;">{desc}</p> 
                     </div>
                     <div style="flex: 1;"> 

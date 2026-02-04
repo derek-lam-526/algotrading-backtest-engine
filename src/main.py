@@ -32,6 +32,8 @@ class BacktestEngine:
         match mode:
             case "SINGLE":
                 self._run_single()
+            case "BATCH":
+                self._run_batch()
             case _:
                 print(f"Unknown Mode: '{mode}'. Check backtest_settings.py")
 
@@ -40,7 +42,18 @@ class BacktestEngine:
         self._process_symbol(symbol)
 
     def _run_batch(self):
-        pass
+        symbol_list = settings.BATCH_SYMBOLS 
+        total = len(symbol_list)
+        print(f"Batch Queue: {total} symbols")
+
+        success_count = 0
+        for symbol in symbol_list:
+            if self._process_symbol(symbol):
+                success_count += 1
+        
+        print("-" * 30)
+        print(f"Batch Complete: {success_count}/{total} successful.")
+        print(f"Log: {os.path.join(self.output_dir, self.strategy_class.__name__, 'summary_log.csv')}")
 
     def _process_symbol(self, symbol):
         """
@@ -70,7 +83,8 @@ class BacktestEngine:
             bt = Backtest(df, 
                           self.strategy_class, 
                           cash=settings.INITIAL_CASH, 
-                          commission=settings.COMMISSION)
+                          commission=settings.COMMISSION,
+                          finalize_trades=True)
             
             # Run with parameter overrides from settings
             stats = bt.run(**settings.STRATEGY_PARAMS)
@@ -81,7 +95,7 @@ class BacktestEngine:
             # Save
             ReportGenerator.save_report(backtest_instance=bt, 
                                         stats=stats, 
-                                        symbol=settings.SINGLE_SYMBOL, 
+                                        symbol=symbol, 
                                         timeframe=settings.TIMEFRAME, 
                                         strategy_class=stats._strategy, 
                                         output_dir=self.output_dir)
@@ -89,7 +103,7 @@ class BacktestEngine:
             return True
         
         except Exception as e:
-            print(f"❌ Error processing {symbol}: {e}")
+            print(f"Error processing {symbol}: {e}")
             # Uncomment the next line to see full error tracebacks during debugging
             import traceback; traceback.print_exc()
             return False
